@@ -4,7 +4,6 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import User from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 
-
 const generateAccessToken = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -23,7 +22,7 @@ const generateAccessToken = async (userId) => {
 
 const createUser = asyncHandler(async (req, res) => {
   const { fullName, userName, email, password, phone } = req.body;
-  
+  console.log(req.body);
 
   if (
     [userName, email, fullName, password, phone].some(
@@ -41,20 +40,16 @@ const createUser = asyncHandler(async (req, res) => {
   }
 
   const avatarLocalPath = req.files?.avatar?.[0]?.path;
-  console.log(avatarLocalPath);
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar file is required");
-  }
 
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  // const avatar = await uploadOnCloudinary(avatarLocalPath);
 
-  if (!avatar) {
-    throw new ApiError(400, "Failed to upload avatar file");
-  }
+  const avatar = avatarLocalPath
+    ? await uploadOnCloudinary(avatarLocalPath)
+    : null;
 
   const newUser = await User.create({
     fullName,
-    avatar: avatar.url,
+    avatar: avatar.url || " ",
     userName: userName.toLowerCase(),
     password,
     email,
