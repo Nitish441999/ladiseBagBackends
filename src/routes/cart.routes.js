@@ -8,6 +8,6 @@ import {
 const router = Router();
 router.use(verifyJWT);
 router.route("/").post(addToCart);
-router.route("/:userId").get(getCart);
-router.route("/:productId").delete(deleteCart);
+router.route("/").get(getCart);
+router.route("/:id").delete(deleteCart);
 export default router;

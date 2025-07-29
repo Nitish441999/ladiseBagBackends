@@ -11,20 +11,23 @@ import { upload } from "../middlewares/multer.middlewares.js";
 
 const router = Router();
 
+
+
+
+
+router.route("/").get(getAllProducts);
+router.route("/:id").get(getProductById)
 router.use(verifyJWT);
 router.route("/").post(
   upload.fields([
-    {
-      name: "avatar",
-      maxCount: 3,
-    },
+    { name: "avatar", maxCount: 1 },    // Main image
+    { name: "images", maxCount: 5 },    // Gallery images
   ]),
   createProduct
 );
-router.route("/").get(getAllProducts);
+
 router
   .route("/:id")
-  .get(getProductById)
   .put(updateProduct)
   .delete(deleteProduct);
 

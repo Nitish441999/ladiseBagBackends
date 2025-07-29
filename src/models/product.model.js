@@ -2,17 +2,37 @@ import mongoose from "mongoose";
 
 const productSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true },
-    avatar: { type: String },
+    name: { type: String, required: true },
     price: { type: Number, required: true },
     description: String,
-    stock: Number,
-    category: String,
+    inStock: { type: Boolean, default: true },
+    category: {
+      type: String,
+      enum: ["Tote", "Shoulder", "Crossbody", "Clutch", "Handbag", "Hobo"],
+      default: "Shoulder",
+    },
+    material: {
+      type: String,
+      enum: ["cotton", "Leather", "Canvas", "Satin", "Suede"],
+      default: "cotton",
+    },
     color: {
       type: String,
-      enum: ["red", "blue", "black", "green", "white", "yellow"],
+      enum: [
+        "Red",
+        "Blue",
+        "Black",
+        "Green",
+        "White",
+        "Yellow",
+        "Brown",
+        "Pink",
+        "Gold",
+      ],
       default: "black",
     },
+    gallery: [String], 
+   
     reviews: [
       {
         type: mongoose.Schema.Types.ObjectId,

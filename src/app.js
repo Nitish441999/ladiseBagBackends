@@ -12,7 +12,7 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
+
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "*",
@@ -23,10 +23,10 @@ app.use(
 );
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
-app.use(express.static("public")); // lowercase folder
+app.use(express.static("public"));
 app.use(cookieParser());
 
-// Routes
+
 app.get("/", (req, res) => {
   res.send("Server started via GET request");
 });
@@ -37,7 +37,7 @@ app.use("/api/cart", cartRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/products", productRouter);
 
-// 404 handler
+
 app.use("/", (req, res) => {
   res.status(404).json({ success: false, message: "API endpoint not found" });
 });

@@ -6,25 +6,36 @@ import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import Review from "../models/review.model.js";
 
 const createProduct = asyncHandler(async (req, res) => {
-  const { title, price, description, stock, category, color, availableColors } =
-    req.body;
+  const {
+    name,
+    price,
+    description,
+    stock,
+    material,
+    category,
+    color,
+    availableColors,
+  } = req.body;
 
-  if (!title || !price) {
+  if (!name || !price) {
     throw new ApiError(400, "Title and Price are required");
   }
 
-  const avatarLocalPath = req.files?.avatar?.[0]?.path;
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar file is required");
-  }
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-  if (!avatar) {
-    throw new ApiError(400, "Failed to upload avatar file");
+  const imagesLocalPaths = req.files?.gallery;
+  if (!imagesLocalPaths || imagesLocalPaths.length === 0) {
+    throw new ApiError(400, "At least one image file is required");
   }
 
+  const gallery = await Promise.all(
+    imagesLocalPaths.map(async (file) => {
+      const uploadedImage = await uploadOnCloudinary(file.path);
+      return uploadedImage?.url;
+    })
+  );
+
   const product = new Product({
-    title,
-    avatar: avatar.url,
+    name,
+    gallery,
     price,
     description,
     stock,
@@ -32,9 +43,11 @@ const createProduct = asyncHandler(async (req, res) => {
     color,
     availableColors,
     reviews: [],
+    material,
   });
 
   const savedProduct = await product.save();
+
   res
     .status(201)
     .json(new ApiResponse(201, savedProduct, "Product created successfully"));

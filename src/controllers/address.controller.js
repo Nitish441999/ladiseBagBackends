@@ -4,27 +4,29 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import Address from "../models/address.model.js";
 
 const createAddress = asyncHandler(async (req, res) => {
-  const { firstName, lastName, address, city, state, zipCode } = req.body;
-  console.log(req.body);
+  const { fullName, phone, addressType, address, city, state, zipCode } = req.body;
+ 
   const userId = req.user._id;
 
-  if (!firstName || !lastName || !address || !city || !state || !zipCode) {
+  if (!fullName || !phone || !address || !city || !state || !zipCode || !addressType) {
     throw new ApiError(400, "All fields are required");
   }
 
   const newAddress = await Address.create({
     userId,
-    firstName,
-    lastName,
+    fullName,
+    phone,
+    addressType,
     address,
     city,
     state,
     zipCode,
   });
-
+ 
   res
     .status(201)
     .json(new ApiResponse(201, "Address added successfully", newAddress));
+
 });
 
 const getAllAddresses = asyncHandler(async (req, res) => {
@@ -35,16 +37,17 @@ const getAllAddresses = asyncHandler(async (req, res) => {
   }
   res
     .status(200)
-    .json(new ApiResponse(200, "Addresses fetched successfully", addresses));
+    .json(new ApiResponse(200, addresses, "Addresses fetched successfully" ));
 });
-const deleteAddress = asyncHandler(async (req, res) => {
-  const { addressId } = req.params;
 
-  if (!addressId) {
+const deleteAddress = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
     throw new ApiError(400, "Address ID is required");
   }
 
-  const deleted = await Address.findByIdAndDelete(addressId);
+  const deleted = await Address.findByIdAndDelete(id);
 
   if (!deleted) {
     throw new ApiError(404, "Address not found");
@@ -52,12 +55,12 @@ const deleteAddress = asyncHandler(async (req, res) => {
 
   res
     .status(200)
-    .json(ApiResponse(200, "Address deleted successfully", deleted));
+    .json( new ApiResponse(200, "Address deleted successfully", deleted));
 });
 
 const updateAddress = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { firstName, lastName, address, city, state, zipCode } = req.body;
+  const { fullName, phone, addressType, address, city, state, zipCode } = req.body;
 
   if (!id) {
     throw new ApiError(400, "Address ID is required");
@@ -66,8 +69,9 @@ const updateAddress = asyncHandler(async (req, res) => {
   const updatedAddress = await Address.findByIdAndUpdate(
     id,
     {
-      firstName,
-      lastName,
+      fullName,
+      phone,
+      addressType,
       address,
       city,
       state,

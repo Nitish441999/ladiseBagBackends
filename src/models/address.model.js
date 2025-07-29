@@ -7,16 +7,22 @@ const addressSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    firstName: {
-      type: String,
-      required: true,
-      trim: true,
+    fullName:{
+      type:String,
+      required:true,
+      trim:true
     },
-    lastName: {
-      type: String,
-      required: true,
-      trim: true,
+     phone:{
+      type:Number,
+      required:true,
+      trim:true
     },
+    addressType:{
+      type:String,
+      required:true,
+      trim:true
+    },
+    
     address: {
       type: String,
       required: true,

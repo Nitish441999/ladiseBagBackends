@@ -22,7 +22,6 @@ const generateAccessToken = async (userId) => {
 
 const createUser = asyncHandler(async (req, res) => {
   const { fullName, userName, email, password, phone } = req.body;
-  console.log(req.body);
 
   if (
     [userName, email, fullName, password, phone].some(
@@ -49,8 +48,8 @@ const createUser = asyncHandler(async (req, res) => {
 
   const newUser = await User.create({
     fullName,
-    avatar: avatar.url || " ",
-    userName: userName.toLowerCase(),
+    avatar: avatar?.url || " ",
+    userName: userName,
     password,
     email,
     phone,
@@ -68,6 +67,7 @@ const createUser = asyncHandler(async (req, res) => {
 
 const userLogin = asyncHandler(async (req, res) => {
   const { userName, email, password } = req.body;
+
 
   if (!userName && !email) {
     throw new ApiError(400, "Username or email is required");

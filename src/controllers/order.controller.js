@@ -1,3 +1,5 @@
+import Address from "../models/address.model.js";
+import Cart from "../models/cart.model.js";
 import Order from "../models/order.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -8,42 +10,87 @@ const placeOrder = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { cart, shippingAddress, totalAmount, paymentMethod } = req.body;
 
-  console.log("Received request body:", req.body);
-
-  if (!cart || cart.trim() === "") {
-    throw new ApiError(400, "Cart ID is required");
-  }
-
-  if (!shippingAddress || shippingAddress.trim() === "") {
-    throw new ApiError(400, "Shipping address is required");
+  if (!cart || !mongoose.Types.ObjectId.isValid(cart)) {
+    throw new ApiError(400, "Valid Cart ID is required");
   }
 
   if (!totalAmount || isNaN(totalAmount) || totalAmount <= 0) {
-    throw new ApiError(
-      400,
-      "Total amount is required and must be greater than 0"
-    );
+    throw new ApiError(400, "Total amount is invalid");
   }
 
-  if (!paymentMethod || paymentMethod.trim() === "") {
+  if (!paymentMethod || typeof paymentMethod !== "string") {
     throw new ApiError(400, "Payment method is required");
   }
 
+  
+  const addressDoc = await Address.findById(shippingAddress);
+  if (!addressDoc) {
+    throw new ApiError(404, "Shipping address not found");
+  }
+
+  const shippingAddres = {
+    fullName: addressDoc.fullName,
+    phone: addressDoc.phone,
+    address: addressDoc.address,
+    city: addressDoc.city,
+    state: addressDoc.state,
+    zipCode: addressDoc.zipCode,
+    addressType: addressDoc.addressType,
+  };
+
+ 
+  const userCart = await Cart.findById(cart).populate("items.cartProduct");
+
+  if (!userCart || userCart.items.length === 0) {
+    throw new ApiError(404, "Cart not found or empty");
+  }
+
+
+
+
+  const cartItems = userCart.items.map((item) => {
+    const product = item.cartProduct;
+
+    if (!product) return null; 
+
+    return {
+      cartProduct: product._id,
+      name: product.name,
+      price: product.price,
+      quantity: item.quantity,
+      color: product.color || "",
+      material: product.material || "",
+      gallery: product.gallery?.[0] || "",
+      category: product.category || "",
+    };
+  }).filter(Boolean); // Remove nulls
+
+  if (cartItems.length === 0) {
+    throw new ApiError(400, "No valid products found in cart");
+  }
+
+ 
   const order = new Order({
     userId,
     cart,
-    shippingAddress,
+    cartItems,
+    shippingAddress: shippingAddres,
     totalAmount,
     paymentMethod,
-    status: "Pending",
+    status: "Processing",
   });
 
   const savedOrder = await order.save();
+
+
+  await Cart.findByIdAndUpdate(cart, { items: [] });
+
 
   res
     .status(201)
     .json(new ApiResponse(201, savedOrder, "Order placed successfully"));
 });
+
 
 const getOrderById = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -64,21 +111,19 @@ const getOrderById = asyncHandler(async (req, res) => {
 });
 
 const getAllOrders = asyncHandler(async (req, res) => {
-  const orders = await Order.find()
-    .populate({
-      path: "cart",
-      populate: {
-        path: "items.productId",
-        model: "Product",
-      },
-    })
-    .populate("userId", "userName email")
-    .populate("shippingAddress");
+  const userId = req.user._id
+ const orders = await Order.find({userId})
+  .populate({
+    path: "cart",
+    populate: {
+      path: "items.cartProduct",
+      model: "Product",
+    },
+  })
+  .populate("userId", "userName email")
+  .populate("shippingAddress");
 
-  if (!orders || orders.length === 0) {
-    throw new ApiError(404, "No orders found");
-  }
-
+  
   res
     .status(200)
     .json(new ApiResponse(200, orders, "Orders fetched successfully"));
@@ -131,8 +176,10 @@ const deleteOrder = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, null, "Order deleted successfully"));
 });
 
-const cancleOrder = asyncHandler(async (req, res) => {
+const cancelOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const { cartProduct } = req.body; 
+ 
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new ApiError(400, "Invalid Order ID");
@@ -142,15 +189,66 @@ const cancleOrder = asyncHandler(async (req, res) => {
   if (!order) {
     throw new ApiError(404, "Order not found");
   }
-  if (order.status !== "Pending") {
-    throw new ApiError(400, "Only pending orders can be cancelled");
+
+  if (!["Pending", "Processing"].includes(order.status)) {
+    throw new ApiError(400, "This order can't be modified now.");
   }
-  order.status = "Cancelled";
+
+  
+  if (order.cartItems.length === 1) {
+    const item = order.cartItems[0];
+
+    if (item.status === 'Cancelled') {
+      throw new ApiError(400, "Item is already cancelled");
+    }
+
+    item.status = 'Cancelled';
+    item.cancelled = true;
+
+    order.status = 'Cancelled';
+  } else {
+   
+    let deductedAmount = 0;
+    let itemsModified = false;
+
+    order.cartItems = order.cartItems.map((item) => {
+      if (
+        cartProduct.includes(item._id.toString()) &&
+        item.status !== 'Cancelled'
+      ) {
+        item.status = 'Cancelled';
+        item.cancelled = true; 
+        deductedAmount += item.price * item.quantity;
+        itemsModified = true;
+      }
+      return item;
+    });
+
+    if (!itemsModified) {
+      throw new ApiError(400, "No valid items selected or already cancelled");
+    }
+
+    order.totalAmount = Math.max(0, order.totalAmount - deductedAmount);
+  }
+
+  const allItemsCancelled = order.cartItems.every(
+    (item) => item.status === 'Cancelled'
+  );
+  if (allItemsCancelled) {
+    order.status = 'Cancelled';
+  }
+
   const updatedOrder = await order.save();
+
+
   res
     .status(200)
-    .json(new ApiResponse(200, updatedOrder, "Order cancelled successfully"));
+    .json(
+      new ApiResponse(200, updatedOrder, "Selected items cancelled successfully")
+    );
 });
+
+
 
 const returnOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -179,6 +277,6 @@ export {
   getAllOrders,
   updateOrderStatus,
   deleteOrder,
-  cancleOrder,
+  cancelOrder,
   returnOrder,
 };

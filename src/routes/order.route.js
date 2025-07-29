@@ -6,7 +6,7 @@ import {
   updateOrderStatus,
   deleteOrder,
   returnOrder,
-  cancleOrder,
+  cancelOrder
 } from "../controllers/order.controller.js";
 import verifyJWT from "../middlewares/auth.middleware.js";
 const router = Router();
@@ -17,7 +17,7 @@ router
   .get(getOrderById)
   .patch(updateOrderStatus)
   .delete(deleteOrder);
-router.route("/:id/cancel").post(cancleOrder);
+router.route("/:id/cancel").patch(cancelOrder);
 router.route("/:id/return").post(returnOrder);
 
 export default router;
