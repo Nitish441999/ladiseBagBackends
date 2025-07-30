@@ -55,7 +55,7 @@ const createUser = asyncHandler(async (req, res) => {
     phone,
   });
   const createdUser = await User.findById(newUser._id).select(
-    "-password -refreshToken"
+    "-password -accessToken"
   );
   if (!createdUser) {
     throw new ApiError(500, "Something went wrong while registering the user");
@@ -136,4 +136,16 @@ const userLogout = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "User Logged Out Successfully"));
 });
 
-export { createUser, userLogin, userLogout };
+const getSingaleUSer = asyncHandler(async(req, res) =>{
+  const id = req.user._id
+  if(!id){
+    throw new ApiError(404, "Id is not found")
+  }
+  const currentUsers = await User.findById(id).select(
+    "-password -accessToken")
+
+  return res.status(201).json(new ApiResponse(201, currentUsers ," Get Singale User Successfull"))
+
+})
+
+export { createUser, userLogin, userLogout, getSingaleUSer };

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createUser,
+  getSingaleUSer,
   userLogin,
   userLogout,
 } from "../controllers/auth.controller.js";
@@ -26,5 +27,6 @@ router.route("/login").post(userLogin);
 router.use(verifyJWT);
 
 router.route("/logout").post(userLogout);
+router.route("/").get(getSingaleUSer)
 
 export default router;
