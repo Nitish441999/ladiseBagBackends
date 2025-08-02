@@ -6,6 +6,10 @@ import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import Review from "../models/review.model.js";
 
 const createProduct = asyncHandler(async (req, res) => {
+  if (!req.body) {
+    throw new ApiError(400, "No form data received");
+  }
+
   const {
     name,
     price,
@@ -18,7 +22,7 @@ const createProduct = asyncHandler(async (req, res) => {
   } = req.body;
 
   if (!name || !price) {
-    throw new ApiError(400, "Title and Price are required");
+    throw new ApiError(400, "Name and Price are required");
   }
 
   const imagesLocalPaths = req.files?.gallery;
@@ -48,10 +52,11 @@ const createProduct = asyncHandler(async (req, res) => {
 
   const savedProduct = await product.save();
 
-  res
-    .status(201)
-    .json(new ApiResponse(201, savedProduct, "Product created successfully"));
+  res.status(201).json(
+    new ApiResponse(201, savedProduct, "Product created successfully")
+  );
 });
+
 
 const getAllProducts = asyncHandler(async (req, res) => {
   const products = await Product.find().populate("reviews");
@@ -103,9 +108,16 @@ const getProductById = asyncHandler(async (req, res) => {
 const updateProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
-
-  if (!id) {
-    throw new ApiError(400, "Product ID is required");
+  let gallery = [];
+  const imagesLocalPaths = req.files?.gallery;
+  if (imagesLocalPaths && imagesLocalPaths.length > 0) {
+    gallery = await Promise.all(
+      imagesLocalPaths.map(async (file) => {
+        const uploadedImage = await uploadOnCloudinary(file.path);
+        return uploadedImage?.url;
+      })
+    );
+    updateData.gallery = gallery;
   }
 
   const updatedProduct = await Product.findByIdAndUpdate(id, updateData, {
@@ -117,10 +129,11 @@ const updateProduct = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Product not found");
   }
 
-  res
-    .status(200)
-    .json(new ApiResponse(200, updatedProduct, "Product updated successfully"));
+  res.status(200).json(
+    new ApiResponse(200, updatedProduct, "Product updated successfully")
+  );
 });
+
 const deleteProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
 

@@ -138,6 +138,7 @@ const userLogout = asyncHandler(async (req, res) => {
 
 const getSingaleUSer = asyncHandler(async(req, res) =>{
   const id = req.user._id
+
   if(!id){
     throw new ApiError(404, "Id is not found")
   }
@@ -147,5 +148,14 @@ const getSingaleUSer = asyncHandler(async(req, res) =>{
   return res.status(201).json(new ApiResponse(201, currentUsers ," Get Singale User Successfull"))
 
 })
+const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await User.find();
+  if (!users || users.length === 0) {
+    throw new ApiError(404, "Data not found");
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { users }, "Users found  successfully"));
+});
 
-export { createUser, userLogin, userLogout, getSingaleUSer };
+export { createUser, userLogin, userLogout, getSingaleUSer,getAllUsers };

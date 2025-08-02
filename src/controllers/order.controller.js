@@ -5,6 +5,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import mongoose from "mongoose";
+import moment from "moment/moment.js";
 
 const placeOrder = asyncHandler(async (req, res) => {
   const userId = req.user._id;
@@ -95,9 +96,6 @@ const placeOrder = asyncHandler(async (req, res) => {
 const getOrderById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new ApiError(400, "Invalid Order ID");
-  }
 
   const order = await Order.findById(id).populate("userId CartID");
 
@@ -271,6 +269,35 @@ const returnOrder = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, updatedOrder, "Order returned successfully"));
 });
 
+
+const getWeeklyRevenue = asyncHandler(async (req, res) => {
+  const startOfWeek = moment().startOf("week");
+  const endOfWeek = moment().endOf("week");
+  const orders = await Order.find({
+    createdAt: { $gte: startOfWeek.toDate(), $lte: endOfWeek.toDate() },
+  });
+  const weeklyData = {};
+  orders.forEach((order) => {
+    const day = moment(order.createdAt).format("ddd"); // 'Mon', 'Tue', etc.
+    if (!weeklyData[day]) {
+      weeklyData[day] = { revenue: 0, orders: 0 };
+    }
+    weeklyData[day].revenue += order.totalAmount;
+    weeklyData[day].orders += 1;
+  });
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const formattedData = days.map((day) => ({
+    name: day,
+    revenue: weeklyData[day]?.revenue || 0,
+    orders: weeklyData[day]?.orders || 0,
+  }));
+  res
+    .status(200)
+    .json(
+      new ApiResponse(200, formattedData, "Weekly Data Fetched successfully")
+    );
+});
+
 export {
   placeOrder,
   getOrderById,
@@ -279,4 +306,5 @@ export {
   deleteOrder,
   cancelOrder,
   returnOrder,
+  getWeeklyRevenue,
 };
