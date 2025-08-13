@@ -174,10 +174,11 @@ const deleteOrder = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, null, "Order deleted successfully"));
 });
 
+const TAX_RATE = 0.08; // 8%
+
 const cancelOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { cartProduct } = req.body; 
- 
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new ApiError(400, "Invalid Order ID");
@@ -192,7 +193,6 @@ const cancelOrder = asyncHandler(async (req, res) => {
     throw new ApiError(400, "This order can't be modified now.");
   }
 
-  
   if (order.cartItems.length === 1) {
     const item = order.cartItems[0];
 
@@ -202,11 +202,16 @@ const cancelOrder = asyncHandler(async (req, res) => {
 
     item.status = 'Cancelled';
     item.cancelled = true;
-
     order.status = 'Cancelled';
+
+    // Deduct both price and tax
+    const cancelAmount = item.price * item.quantity;
+    const cancelTax = cancelAmount * TAX_RATE;
+    order.totalAmount = Math.max(0, order.totalAmount - cancelAmount - cancelTax);
+
   } else {
-   
     let deductedAmount = 0;
+    let deductedTax = 0;
     let itemsModified = false;
 
     order.cartItems = order.cartItems.map((item) => {
@@ -217,6 +222,7 @@ const cancelOrder = asyncHandler(async (req, res) => {
         item.status = 'Cancelled';
         item.cancelled = true; 
         deductedAmount += item.price * item.quantity;
+        deductedTax += (item.price * item.quantity) * TAX_RATE;
         itemsModified = true;
       }
       return item;
@@ -226,7 +232,8 @@ const cancelOrder = asyncHandler(async (req, res) => {
       throw new ApiError(400, "No valid items selected or already cancelled");
     }
 
-    order.totalAmount = Math.max(0, order.totalAmount - deductedAmount);
+    // Deduct both subtotal and tax
+    order.totalAmount = Math.max(0, order.totalAmount - deductedAmount - deductedTax);
   }
 
   const allItemsCancelled = order.cartItems.every(
@@ -238,15 +245,10 @@ const cancelOrder = asyncHandler(async (req, res) => {
 
   const updatedOrder = await order.save();
 
-
-  res
-    .status(200)
-    .json(
-      new ApiResponse(200, updatedOrder, "Selected items cancelled successfully")
-    );
+  res.status(200).json(
+    new ApiResponse(200, updatedOrder, "Selected items cancelled successfully")
+  );
 });
-
-
 
 const returnOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -268,7 +270,6 @@ const returnOrder = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, updatedOrder, "Order returned successfully"));
 });
-
 
 const getWeeklyRevenue = asyncHandler(async (req, res) => {
   const startOfWeek = moment().startOf("week");
@@ -297,6 +298,8 @@ const getWeeklyRevenue = asyncHandler(async (req, res) => {
       new ApiResponse(200, formattedData, "Weekly Data Fetched successfully")
     );
 });
+
+
 
 export {
   placeOrder,
